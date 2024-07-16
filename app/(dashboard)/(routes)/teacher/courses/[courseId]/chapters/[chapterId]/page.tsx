@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Eye, LayoutDashboard, Video } from "lucide-react";
+import { ArrowLeft, Eye, LayoutDashboard, PlusCircle, Video } from "lucide-react";
 
 import { db } from "@/lib/db";
 import { IconBadge } from "@/components/icon-badge";
@@ -9,6 +9,7 @@ import { Banner } from "@/components/banner";
 import { ChapterTitleForm } from "./_components/chapter-title-form";
 import { ChapterDescriptionForm } from "./_components/chapter-description-form";
 import { ChapterVideoForm } from "./_components/chapter-video-form";
+import { ChapterQuizForm } from "./_components/chapter-quiz-form";
 import { ChapterActions } from "./_components/chapter-actions";
 import { currentUser } from "@/lib/auth";
 
@@ -29,21 +30,34 @@ const ChapterIdPage = async ({
       id: params.chapterId,
       courseId: params.courseId
     },
-  
+    include: {
+      quizzes: {
+        include: {
+          questions: true
+        }
+      }
+    }
   });
 
   if (!chapter) {
     return redirect("/")
   }
 
+  const isQuizCompleted = (quiz: { questions: string | any[]; }) => {
+    return quiz.questions.length > 0;
+  }
+
+  const isQuizzesComplete = chapter.quizzes.length > 0 && chapter.quizzes.every(isQuizCompleted);
+
   const requiredFields = [
     chapter.title,
     chapter.description,
+    isQuizzesComplete ? chapter.quizzes : null,
     chapter.videoUrl,
   ];
 
   const totalFields = requiredFields.length;
-  const completedFields = requiredFields.filter(Boolean).length;
+  const completedFields = requiredFields.filter(field => field !== null).length;
 
   const completionText = `(${completedFields}/${totalFields})`;
 
@@ -104,6 +118,10 @@ const ChapterIdPage = async ({
                 courseId={params.courseId}
                 chapterId={params.chapterId}
               />
+              <ChapterQuizForm
+                initialData={chapter}
+                chapterId={params.chapterId} 
+                courseId={params.courseId} />
             </div>
           </div>
           <div>
@@ -120,9 +138,9 @@ const ChapterIdPage = async ({
             />
           </div>
         </div>
-      </div>
+      </div >
     </>
-   );
+  );
 }
- 
+
 export default ChapterIdPage;
